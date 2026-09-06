@@ -31,12 +31,13 @@ LOCAL IMAGE → FACE ENCODING → REVERSE IMAGE SEARCH → SOCIAL MATCH
 16. [Independent verification](#16-independent-verification)
 17. [Example expected output](#17-example-expected-output)
 18. [Testing](#18-testing)
-19. [Security considerations](#19-security-considerations)
-20. [Known limitations](#20-known-limitations)
-21. [What the blockchain proves](#21-what-the-blockchain-proves)
-22. [What the blockchain does NOT prove](#22-what-the-blockchain-does-not-prove)
-23. [Implementation status](#23-implementation-status)
-24. [Screen-recording checklist](#24-screen-recording-checklist)
+19. [Live validation](#live-validation)
+20. [Security considerations](#20-security-considerations)
+21. [Known limitations](#21-known-limitations)
+22. [What the blockchain proves](#22-what-the-blockchain-proves)
+23. [What the blockchain does NOT prove](#23-what-the-blockchain-does-not-prove)
+24. [Implementation status](#24-implementation-status)
+25. [Screen-recording checklist](#25-screen-recording-checklist)
 
 ---
 
@@ -63,7 +64,7 @@ This project is deliberately careful about what it claims. A face encoding is no
 
 | Requirement | Version | Notes |
 |---|---|---|
-| Python | 3.10+ | Tested on 3.11 |
+| Python | 3.10+ | Tested on 3.12 |
 | pip packages | see `requirements.txt` | `dlib-bin` ships prebuilt wheels — no CMake needed |
 | SerpAPI key | free tier | *or* a TinEye key — at least one reverse-search provider |
 | Sepolia RPC URL | any | Public nodes work; no account required |
@@ -653,7 +654,20 @@ Notable adversarial tests: a forger who edits a field *and* recomputes the store
 
 ---
 
-## 19. Security considerations
+## Live validation
+
+A live end-to-end execution was validated on Ethereum Sepolia during development.
+
+| Item | Value |
+|---|---|
+| Network | Ethereum Sepolia |
+| Chain ID | 11155111 |
+| Verification contract | `0x5559ea52075402646604EcB0c3157adce37b21A1` |
+| Example registration transaction | `0xdefad4d9f65ccf05fa614f6d4e684593310488e7c0933041aaf42d55a7aa1f80` |
+
+The registration transaction is publicly inspectable on Sepolia Etherscan. The repository does not contain the demo photograph, API keys, private key, or generated runtime evidence files; those remain local to the demonstration environment.
+
+## 20. Security considerations
 
 - **Private keys** are read from the environment only. Never logged, never written to the record, never included in an error message — there is an explicit test asserting a bad key is not echoed back.
 - **Use a throwaway wallet** holding only faucet ETH. Never a key controlling mainnet funds.
@@ -668,7 +682,7 @@ Notable adversarial tests: a forger who edits a field *and* recomputes the store
 
 ---
 
-## 20. Known limitations
+## 21. Known limitations
 
 These are real and are **not** hidden. Where a limitation cannot be eliminated, the architecture mitigates it and the record documents it.
 
@@ -687,7 +701,7 @@ These are real and are **not** hidden. Where a limitation cannot be eliminated, 
 
 ---
 
-## 21. What the blockchain proves
+## 22. What the blockchain proves
 
 ✅ A record with **exactly this SHA-256 hash existed before block N** at the recorded timestamp.
 ✅ The evidence file has **not been altered by a single byte** since anchoring.
@@ -698,7 +712,7 @@ These are real and are **not** hidden. Where a limitation cannot be eliminated, 
 
 ---
 
-## 22. What the blockchain does NOT prove
+## 23. What the blockchain does NOT prove
 
 ❌ **The identity of any person in the photograph.** Face detection finds *a* face; it does not name anyone.
 ❌ **That anyone owns or controls the matched social-media account.** A photo appearing somewhere says nothing about account ownership.
@@ -712,7 +726,7 @@ These are real and are **not** hidden. Where a limitation cannot be eliminated, 
 
 ---
 
-## 23. Implementation status
+## 24. Implementation status
 
 ### ✅ IMPLEMENTED — working, tested, demonstrable
 
@@ -756,7 +770,7 @@ These are real and are **not** hidden. Where a limitation cannot be eliminated, 
 
 ---
 
-## 24. Screen-recording checklist
+## 25. Screen-recording checklist
 
 A clean, unedited run for judging. Total ≈ 4–5 minutes.
 
