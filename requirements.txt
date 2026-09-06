@@ -1,7 +1,14 @@
-Pillow>=10.0.0
-numpy>=1.26.0
+# --- Core pipeline (required) ---
+Pillow>=10.0.0            # image decode/validate/perceptual hashing
+numpy>=1.26.0             # encoding + perceptual hash maths
+requests>=2.31.0          # provider APIs, image transport
+python-dotenv>=1.0.0      # .env loading
+web3>=6.11.0              # Ethereum Sepolia client
+eth-account>=0.10.0       # local transaction signing
+
+# --- Face detection and encoding (required) ---
+# dlib-bin ships prebuilt wheels, so no CMake/C++ toolchain is needed.
+# If it is unavailable for your platform, use: pip install dlib
+dlib-bin>=19.24.6
 face-recognition>=1.3.0
-requests>=2.31.0
-python-dotenv>=1.0.0
-web3>=7.0.0
-eth-account>=0.13.0
+face-recognition-models>=0.3.0

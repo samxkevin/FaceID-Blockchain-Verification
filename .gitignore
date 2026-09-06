@@ -18,3 +18,8 @@ cache/
 broadcast/
 dist/
 build/
+
+# Pipeline outputs and local samples
+output/
+samples/
+*.TAMPERED.json
