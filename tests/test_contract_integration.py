@@ -44,6 +44,26 @@ def _compile():
     return contract["abi"], contract["evm"]["bytecode"]["object"]
 
 
+def revert_errors():
+    """Exception types a revert can surface as.
+
+    Solidity *custom errors* (which this contract uses) are reported by
+    eth-tester as `TransactionFailed`, while `require`-style string reverts and
+    eth_call reverts surface as web3's `ContractLogicError`. The exact type also
+    varies across web3/eth-tester versions, so tests accept either.
+    """
+    from web3.exceptions import ContractLogicError
+
+    types: tuple[type[BaseException], ...] = (ContractLogicError,)
+    try:
+        from eth_tester.exceptions import TransactionFailed
+
+        types += (TransactionFailed,)
+    except ImportError:  # pragma: no cover - eth-tester always present here
+        pass
+    return types
+
+
 @pytest.fixture(scope="module")
 def deployed():
     pytest.importorskip("eth_tester", reason="eth-tester not installed")
@@ -102,10 +122,8 @@ class TestRegistration:
 class TestImmutability:
     def test_duplicate_registration_is_rejected(self, deployed):
         """The first anchoring is authoritative and can never be overwritten."""
-        from web3.exceptions import ContractLogicError
-
         _, contract = deployed
-        with pytest.raises(ContractLogicError):
+        with pytest.raises(revert_errors()):
             contract.functions.registerVerification(RECORD_A, URL_B).transact()
 
     def test_the_original_url_commitment_survives_a_duplicate_attempt(self, deployed):
@@ -120,24 +138,18 @@ class TestImmutability:
 
 class TestInputValidation:
     def test_a_zero_record_hash_is_rejected(self, deployed):
-        from web3.exceptions import ContractLogicError
-
         _, contract = deployed
-        with pytest.raises(ContractLogicError):
+        with pytest.raises(revert_errors()):
             contract.functions.registerVerification(ZERO, URL_A).transact()
 
     def test_a_zero_url_hash_is_rejected(self, deployed):
-        from web3.exceptions import ContractLogicError
-
         _, contract = deployed
-        with pytest.raises(ContractLogicError):
+        with pytest.raises(revert_errors()):
             contract.functions.registerVerification(RECORD_B, ZERO).transact()
 
     def test_reading_an_unknown_record_reverts_rather_than_returning_zeros(self, deployed):
-        from web3.exceptions import ContractLogicError
-
         _, contract = deployed
-        with pytest.raises(ContractLogicError):
+        with pytest.raises(revert_errors()):
             contract.functions.getVerification(bytes.fromhex("f" * 64)).call()
 
 
