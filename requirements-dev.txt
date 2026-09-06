@@ -1,0 +1,12 @@
+# Development / testing extras.
+#
+# Install AFTER completing both steps in requirements.txt:
+#     pip install -r requirements.txt
+#     pip install --no-deps face_recognition face_recognition_models
+#     pip install -r requirements-dev.txt
+
+-r requirements.txt
+
+pytest>=8.0.0             # test suite
+py-solc-x>=2.0.2          # compile + deploy the Solidity contract
+web3[tester]>=6.11.0      # in-process EVM for the contract integration tests
