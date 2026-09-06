@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import requests
@@ -43,19 +44,37 @@ SECTION_MATCH_TYPES: list[tuple[str, str]] = [
 
 ENDPOINT = "https://serpapi.com/search.json"
 
+#: SerpAPI's Image API. Accepts a multipart file upload and returns an
+#: `image_id` that the Google Lens engine can query directly.
+UPLOAD_ENDPOINT = "https://serpapi.com/image"
+
 
 class SerpApiLensProvider:
     """Adapter around SerpAPI's `google_lens` engine.
 
-    Requires the query image to be reachable at a public URL; see
-    `src.reverse_search.transport` for how a local file gets one without us
-    hosting anything.
+    Two ways to submit the query image, in order of preference:
+
+    1. **SerpAPI Image API direct upload** (default). The local file is POSTed
+       as multipart/form-data to https://serpapi.com/image, which returns an
+       `image_id`. Lens is then queried with `image_id=...`. The photograph goes
+       only to SerpAPI - the search provider we are already using - and is never
+       published to a third-party temporary file bin.
+    2. **Public URL** (fallback). Lens is queried with `url=...`, using either a
+       link the operator already controls (`--image-url`) or an ephemeral
+       anonymous upload (`--upload`). See `src.reverse_search.transport`.
     """
 
     name = "Google Lens via SerpAPI"
     engine = "google_lens"
-    #: Declares to the pipeline that this provider cannot take raw bytes.
-    accepts_local_file = False
+    #: This provider can take a local file directly, via the Image API upload.
+    accepts_local_file = True
+    #: Wording used by the CLI/evidence record for the direct-upload transport.
+    direct_transport_service = "serpapi-image-api"
+    direct_transport_note = (
+        "SerpAPI Image API direct upload: the local file was POSTed to "
+        "https://serpapi.com/image and queried by image_id. It was not published "
+        "to any third-party temporary file bin."
+    )
 
     def __init__(self, api_key: str | None = None, timeout: int = 90, country: str = "us") -> None:
         self.api_key = api_key or os.getenv("SERPAPI_API_KEY", "")
@@ -67,10 +86,86 @@ class SerpApiLensProvider:
                 remedy="Get a key at https://serpapi.com and put SERPAPI_API_KEY=... in your .env file.",
             )
 
-    def _request(self, image_url: str) -> dict[str, Any]:
+    def upload_image(self, image_path: str | Path) -> str:
+        """Upload a local file to SerpAPI's Image API and return its `image_id`.
+
+        This is the direct-upload half of the flow: no public URL, no
+        third-party file bin. Raises ProviderRequestError if the upload fails or
+        the response carries no usable `image_id`.
+        """
+        path = Path(image_path).expanduser()
+        if not path.is_file():
+            raise ProviderConfigError(
+                f"Cannot upload, file not found: {path}",
+                remedy="Check the --image path.",
+            )
+
+        try:
+            with open(path, "rb") as handle:
+                response = requests.post(
+                    UPLOAD_ENDPOINT,
+                    files={"image": (path.name, handle, "application/octet-stream")},
+                    data={"api_key": self.api_key},
+                    timeout=self.timeout,
+                )
+        except requests.Timeout as exc:
+            raise ProviderRequestError(
+                f"The SerpAPI Image API did not respond within {self.timeout}s.",
+                remedy="Retry, or fall back to --upload / --image-url.",
+            ) from exc
+        except requests.RequestException as exc:
+            raise ProviderRequestError(
+                f"Could not reach the SerpAPI Image API: {exc}",
+                remedy="Check your network connection.",
+            ) from exc
+
+        if response.status_code == 401:
+            raise ProviderConfigError(
+                "SerpAPI rejected the API key on image upload (HTTP 401).",
+                remedy="Verify SERPAPI_API_KEY in your .env file.",
+            )
+        if response.status_code == 429:
+            raise ProviderRequestError(
+                "SerpAPI rate limit or quota exceeded on image upload (HTTP 429).",
+                remedy="Wait and retry, or check your SerpAPI plan usage.",
+            )
+        if response.status_code >= 400:
+            raise ProviderRequestError(
+                f"SerpAPI Image API returned HTTP {response.status_code}: {response.text[:300]}",
+                remedy="Confirm the file is a supported image within SerpAPI's size limit.",
+            )
+
+        try:
+            data = response.json()
+        except ValueError as exc:
+            raise ProviderRequestError(
+                "The SerpAPI Image API returned a response that was not valid JSON.",
+                remedy="Retry, or fall back to --upload / --image-url.",
+            ) from exc
+
+        if isinstance(data, dict) and data.get("error"):
+            raise ProviderRequestError(
+                f"The SerpAPI Image API reported an error: {data['error']}",
+                remedy="Confirm the file is a supported image within SerpAPI's size limit.",
+            )
+
+        image_id = data.get("image_id") if isinstance(data, dict) else None
+        if not image_id or not isinstance(image_id, str):
+            raise ProviderRequestError(
+                "The SerpAPI Image API response did not contain an 'image_id'. "
+                f"Received keys: {sorted(data) if isinstance(data, dict) else type(data).__name__}",
+                remedy=(
+                    "Retry the upload, or fall back to the URL transport with "
+                    "--upload or --image-url <public link>."
+                ),
+            )
+        return image_id
+
+    def _request(self, image_reference: str, by_image_id: bool = False) -> dict[str, Any]:
+        """Query the Lens engine, either by `image_id` or by public `url`."""
         params = {
             "engine": self.engine,
-            "url": image_url,
+            "image_id" if by_image_id else "url": image_reference,
             "api_key": self.api_key,
             "hl": "en",
             "country": self.country,
@@ -157,18 +252,27 @@ class SerpApiLensProvider:
         return list(by_url.values()), counts
 
     def search(self, image_reference: str) -> SearchResult:
-        """Run a live Google Lens search for a publicly reachable image URL."""
-        if not str(image_reference).lower().startswith(("http://", "https://")):
-            raise ProviderConfigError(
-                "The Google Lens engine needs a public image URL, not a local path.",
-                remedy="Run the pipeline with --upload, or pass --image-url <public link>.",
-            )
-        data = self._request(image_reference)
+        """Run a live Google Lens search.
+
+        `image_reference` is either a public http(s) URL (fallback transport) or
+        a local file path, in which case the SerpAPI Image API direct-upload
+        flow is used: upload -> image_id -> Lens query by image_id.
+        """
+        reference = str(image_reference)
+        if reference.lower().startswith(("http://", "https://")):
+            data = self._request(reference, by_image_id=False)
+            recorded_reference = reference
+        else:
+            image_id = self.upload_image(reference)
+            data = self._request(image_id, by_image_id=True)
+            # Record the SerpAPI-side identifier, never the operator's path.
+            recorded_reference = f"serpapi-image-id:{image_id}"
+
         candidates, counts = self._parse(data)
         return SearchResult(
             provider=self.name,
             provider_engine=self.engine,
-            query_image_reference=image_reference,
+            query_image_reference=recorded_reference,
             candidates=candidates,
             searched_at_utc=datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
             section_counts=counts,

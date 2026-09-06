@@ -140,7 +140,7 @@ scripts/
     verify_record.py                 independent verification (no keys needed)
     deploy_contract.py               compile + deploy to Sepolia
     tamper_demo.py                   prove tamper-evidence on camera
-tests/                               191 tests (177 offline + 14 needing solc)
+tests/                               204 tests (190 offline + 14 needing solc)
 ```
 
 ---
@@ -187,7 +187,7 @@ The raw 128-d encoding **never leaves the machine** and is **never written on-ch
 
 | | **TinEye** (`--provider tineye`) | **Google Lens / SerpAPI** (`--provider serpapi`, default) |
 |---|---|---|
-| Local file accepted directly | ✅ **yes** — no upload anywhere else | ❌ needs a fetchable URL |
+| Local file accepted directly | ✅ **yes** — multipart search upload | ✅ **yes** — via the SerpAPI Image API |
 | Index type | exact / derivative copies only | exact + visual similarity |
 | Match strength | every hit is an exact-image match | distinguishes exact vs visual |
 | Social coverage | thinner | broader |
@@ -198,11 +198,28 @@ Google Lens fetches the query image over HTTP and cannot take a local file. Rath
 
 | Mode | Flag | What happens |
 |---|---|---|
-| `direct` | `--provider tineye` | **Best.** Image bytes POSTed straight to the provider. Nothing is published anywhere. |
-| `provided` | `--image-url <url>` | You supply a public URL. The pipeline **downloads it and verifies** it serves the same picture (byte-identical, or perceptually identical if the host re-encoded it) before trusting it. A mismatch is a hard error. |
-| `ephemeral` | `--upload` | Opt-in anonymous upload to a short-retention file bin (0x0.st → tmpfiles.org → uguu.se, first success wins) purely so Lens can fetch it. |
+| `direct` (SerpAPI) | *default for* `--provider serpapi` | **SerpAPI Image API direct upload.** The local file is POSTed as `multipart/form-data` to `https://serpapi.com/image`, which returns an `image_id`. Lens is then queried with `engine=google_lens&image_id=...`. The photograph goes only to SerpAPI — the provider already being used — and **never** to a third-party file bin. |
+| `direct` (TinEye) | `--provider tineye` | Image bytes POSTed straight to the TinEye search endpoint. Nothing is published anywhere. |
+| `provided` | `--image-url <url>` | Fallback. You supply a public URL. The pipeline **downloads it and verifies** it serves the same picture (byte-identical, or perceptually identical if the host re-encoded it) before trusting it. A mismatch is a hard error. |
+| `ephemeral` | `--upload` | Fallback. Opt-in anonymous upload to a short-retention file bin (0x0.st → tmpfiles.org → uguu.se, first success wins) purely so Lens can fetch it. |
 
-**No hosting infrastructure is introduced.** The ephemeral bins are third-party throwaway endpoints we do not operate, nothing persists, and the upload only ever happens behind an explicit `--upload` flag — never silently.
+**Both providers now accept a local file directly**, so neither route requires publishing your photograph. Passing `--image-url` or `--upload` explicitly forces the URL fallback, which remains fully supported.
+
+**No hosting infrastructure is introduced.** The ephemeral bins are third-party throwaway endpoints we do not operate, nothing persists, and that upload only ever happens behind an explicit `--upload` flag — never silently.
+
+#### SerpAPI Image API flow
+
+```
+samples/photo.jpg
+   │  POST multipart/form-data  (image=<file>, api_key=<key>)
+   ▼
+https://serpapi.com/image  ──►  { "image_id": "..." }
+   │  GET engine=google_lens&image_id=<image_id>&api_key=<key>
+   ▼
+Google Lens results
+```
+
+The evidence record stores `serpapi-image-id:<id>` as the query reference — never your local directory path — and records the transport as `serpapi-image-api`.
 
 ### Match-type fidelity
 
@@ -455,10 +472,13 @@ Compile without deploying: `python scripts/deploy_contract.py --compile-only`
 ## 15. End-to-end execution
 
 ```bash
-# Best: TinEye takes the local file directly — no upload anywhere else
+# Google Lens via the SerpAPI Image API direct upload (default, no public URL)
+python scripts/run_pipeline.py --image samples/photo.jpg
+
+# TinEye takes the local file directly too
 python scripts/run_pipeline.py --image samples/photo.jpg --provider tineye
 
-# Google Lens with an anonymous short-retention upload so it can fetch the image
+# Fallback: Google Lens with an anonymous short-retention upload
 python scripts/run_pipeline.py --image samples/photo.jpg --upload
 
 # Google Lens reusing a public URL you already control (verified before use)
@@ -527,8 +547,9 @@ Verify entirely outside this codebase — the contract is public, so a judge can
 
 [2/5] Running genuine reverse-image search
       Provider:                 Google Lens via SerpAPI
-      Image transport:          ephemeral (0x0.st)
-      Query image URL:          https://0x0.st/xxxx.jpg
+      Image transport:          SerpAPI Image API direct upload
+      Lens query mode:          image_id (no public URL used)
+      SerpAPI image_id:         <returned by SerpAPI>
       Candidates returned:      34
       Provider exact matches:   2
       Response sections:        {'exact_matches': 2, 'visual_matches': 32}
@@ -596,7 +617,7 @@ Verify entirely outside this codebase — the contract is public, so a judge can
 
 ```bash
 pip install -r requirements-dev.txt
-pytest                      # 177 passed, 14 skipped
+pytest                      # 190 passed, 14 skipped
 pytest -v                   # verbose
 pytest --tb=short -q        # concise
 ```
@@ -604,13 +625,13 @@ pytest --tb=short -q        # concise
 Expected result offline:
 
 ```
-177 passed, 14 skipped
+190 passed, 14 skipped
 ```
 
 The 14 skips are the Solidity contract integration tests: they compile the real
 contract with `solc` and execute it on an in-process EVM, and skip automatically
 when `solc` cannot be downloaded. With `solc` reachable the suite reports
-**191 passed**.
+**204 passed**.
 
 **No test requires your API keys, your private key, or any network access.** All external APIs are mocked; the contract tests run on an in-process EVM.
 
@@ -620,7 +641,7 @@ when `solc` cannot be downloaded. With `solc` reachable the suite reports
 | `test_record.py` | 31 | evidence construction, hash sensitivity per field, tamper detection, self-consistent forgery, persistence, float rejection, no-biometric-leak, no-path-leak |
 | `test_selection.py` | 19 | exact-over-visual preference, determinism, post-shape preference, tier assignment, corroboration reordering, blocked-thumbnail handling |
 | `test_social.py` | 34 | platform detection, lookalike-domain rejection, post-shape regexes, utility-page demotion |
-| `test_providers.py` | 18 | SerpAPI/TinEye parsing, section→type mapping, dedup, malformed entries, HTTP 401/429/error paths |
+| `test_providers.py` | 31 | SerpAPI/TinEye parsing, section→type mapping, dedup, malformed entries, HTTP 401/429/error paths, **SerpAPI Image API upload / missing image_id / upload failures / Lens-by-image_id / no third-party bin** |
 | `test_blockchain.py` | 28 | hex encoding, keccak URL hashing, every config error, wrong network, record-not-found, URL-substitution detection, key-never-leaked |
 | `test_perceptual.py` | 12 | hash determinism, JPEG/downscale robustness, different-image rejection, no fabricated confidence scores |
 | `test_face.py` | 11 | input validation, error remedies, metadata contract, encoding commitment, primary-face selection |
@@ -651,7 +672,7 @@ Notable adversarial tests: a forger who edits a field *and* recomputes the store
 
 These are real and are **not** hidden. Where a limitation cannot be eliminated, the architecture mitigates it and the record documents it.
 
-1. **Google Lens requires a fetchable image URL.** *Mitigated:* `--provider tineye` avoids it entirely; `--upload` uses throwaway bins; `--image-url` is verified before use. The transport used is always recorded.
+1. **Google Lens cannot read a local file by itself.** *Mitigated:* the default path now uses SerpAPI's own Image API (`POST /image` → `image_id`), so no public URL and no third-party bin is involved; `--provider tineye` also takes the file directly; `--upload` / `--image-url` remain as fallbacks. The transport used is always recorded.
 2. **A visual match is not proof the identical image is on the page.** *Mitigated:* exact and visual are never conflated; we independently perceptually-hash the provider thumbnail; the resulting **evidence tier** states the strength precisely.
 3. **Corroboration uses the provider's thumbnail, not the post's original file.** Thumbnails are downscaled, re-encoded derivatives. A low Hamming distance corroborates "the same picture", not byte equality. Stated in the record.
 4. **Social platforms block automated fetches**, and posts may be private, deleted or region-locked. *Mitigated:* fetch failures are recorded as "not corroborated" and are never fatal; the pipeline degrades to a weaker, honestly-labelled tier. The pipeline deliberately does **not** scrape platforms in violation of their terms.
@@ -697,7 +718,7 @@ These are real and are **not** hidden. Where a limitation cannot be eliminated, 
 
 - Face detection + 128-d encoding with full input validation and multi-face handling
 - Live Google Lens (SerpAPI) and TinEye reverse-image search adapters
-- Three image transports: direct upload, verified public URL, ephemeral anonymous bin
+- Four image transports: SerpAPI Image API direct upload, TinEye direct upload, verified public URL, ephemeral anonymous bin
 - Exact / page / visual match-type fidelity, never upgraded
 - 19-platform social classification with post-shape detection
 - Independent perceptual-hash corroboration (aHash/dHash/pHash)
@@ -709,7 +730,7 @@ These are real and are **not** hidden. Where a limitation cannot be eliminated, 
 - Independent verification requiring no keys
 - Tamper demonstration script
 - Typed errors with remedies for every failure mode
-- 191 automated tests (177 run fully offline; 14 contract tests need solc), no keys required
+- 204 automated tests (190 run fully offline; 14 contract tests need solc), no keys required
 
 ### 🧪 EXPERIMENTAL — implemented, but with caveats
 
@@ -752,13 +773,13 @@ A clean, unedited run for judging. Total ≈ 4–5 minutes.
 # 1. Show the code is real and nothing is hardcoded  (~30s)
 git log --oneline -5
 grep -ri "instagram.com/p/" src/ --include=*.py     # only regex patterns, no fixed URLs
-pytest -q                                            # 177 passed, 14 skipped
+pytest -q                                            # 190 passed, 14 skipped (204 with solc)
 
 # 2. Show the input image  (~10s)
 ls -la samples/photo.jpg
 
 # 3. Full pipeline, end to end  (~90s)
-python scripts/run_pipeline.py --image samples/photo.jpg --upload
+python scripts/run_pipeline.py --image samples/photo.jpg
 #    → face detected, live candidate count, evidence tier,
 #      image SHA-256, record SHA-256, Sepolia tx hash + block
 

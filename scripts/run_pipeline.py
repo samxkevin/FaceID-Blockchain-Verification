@@ -41,6 +41,16 @@ from src.verification.record import (  # noqa: E402
 
 TOTAL_STEPS = 5
 
+#: Human-readable transport labels shown in the demo output.
+TRANSPORT_LABELS = {
+    "serpapi-image-api": "SerpAPI Image API direct upload",
+    "none": "direct local upload (provider accepts raw bytes)",
+    "operator-supplied": "operator-supplied public URL",
+    "0x0.st": "ephemeral anonymous bin (0x0.st)",
+    "tmpfiles.org": "ephemeral anonymous bin (tmpfiles.org)",
+    "uguu.se": "ephemeral anonymous bin (uguu.se)",
+}
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -100,14 +110,25 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def resolve_transport(args, provider_accepts_local: bool) -> tuple[str, transport.TransportResult]:
-    """Decide how the provider will receive the image, and return (reference, transport)."""
-    if provider_accepts_local:
+def resolve_transport(args, provider) -> tuple[str, transport.TransportResult]:
+    """Decide how the provider will receive the image, and return (reference, transport).
+
+    An explicit --image-url or --upload always wins, so the operator can force
+    the URL fallback. Otherwise a provider that accepts local files gets the
+    path directly (TinEye multipart, or the SerpAPI Image API upload).
+    """
+    provider_accepts_local = getattr(provider, "accepts_local_file", False)
+
+    if provider_accepts_local and not args.image_url and not args.upload:
         return str(Path(args.image).expanduser()), transport.TransportResult(
             mode="direct",
             url="",
-            service="none",
-            note="The provider accepts the image bytes directly; the file was not published anywhere.",
+            service=getattr(provider, "direct_transport_service", "none"),
+            note=getattr(
+                provider,
+                "direct_transport_note",
+                "The provider accepts the image bytes directly; the file was not published anywhere.",
+            ),
         )
 
     if args.image_url:
@@ -121,7 +142,8 @@ def resolve_transport(args, provider_accepts_local: bool) -> tuple[str, transpor
         return result.url, result
 
     raise PipelineError(
-        "The Google Lens provider must fetch the image over HTTP, but no URL was supplied.",
+        f"{getattr(provider, 'name', 'The provider')} must fetch the image over HTTP, "
+        "but no URL was supplied.",
         remedy=(
             "Choose one:\n"
             "  --upload                       anonymous short-retention upload (no hosting required)\n"
@@ -171,9 +193,11 @@ def run(args) -> int:
 
         provider = SerpApiLensProvider()
 
-    reference, transport_result = resolve_transport(args, provider.accepts_local_file)
+    reference, transport_result = resolve_transport(args, provider)
     console.field("Provider:", provider.name)
-    console.field("Image transport:", f"{transport_result.mode} ({transport_result.service})")
+    console.field("Image transport:", TRANSPORT_LABELS.get(
+        transport_result.service, f"{transport_result.mode} ({transport_result.service})"
+    ))
     if transport_result.url:
         console.field("Query image URL:", transport_result.url)
     if transport_result.note:
@@ -181,6 +205,9 @@ def run(args) -> int:
 
     search = provider.search(reference)
     summary = search.summary()
+    if summary["engine"] == "google_lens" and transport_result.service == "serpapi-image-api":
+        console.field("Lens query mode:", "image_id (no public URL used)")
+        console.field("SerpAPI image_id:", search.query_image_reference.split(":", 1)[-1])
     console.field("Candidates returned:", summary["total_candidates"])
     console.field("Provider exact matches:", summary["exact_candidates"])
     console.field("Response sections:", summary["section_counts"])
