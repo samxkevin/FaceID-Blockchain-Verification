@@ -40,10 +40,35 @@ def compile_contract() -> tuple[list, str]:
             remedy="Install it with: pip install py-solc-x",
         ) from exc
 
-    installed = [str(v) for v in solcx.get_installed_solc_versions()]
+    try:
+        installed = [str(v) for v in solcx.get_installed_solc_versions()]
+    except Exception:  # noqa: BLE001 - treat an unreadable cache as "nothing installed"
+        installed = []
+
     if SOLC_VERSION not in installed:
         console.note(f"Downloading solc {SOLC_VERSION} (one time only) ...")
-        solcx.install_solc(SOLC_VERSION)
+        try:
+            solcx.install_solc(SOLC_VERSION)
+        except Exception as exc:  # noqa: BLE001 - network/TLS/proxy failures
+            raise ChainConfigError(
+                f"Could not download the Solidity compiler {SOLC_VERSION}: "
+                f"{type(exc).__name__}: {exc}",
+                remedy=(
+                    "The compiler is fetched from binaries.soliditylang.org, which your "
+                    "network appears to block.\n"
+                    "Options:\n"
+                    "  1. Install solc yourself, then point py-solc-x at it:\n"
+                    "       (Linux)  sudo add-apt-repository ppa:ethereum/ethereum \\\n"
+                    "                && sudo apt-get update && sudo apt-get install solc\n"
+                    "       (macOS)  brew install solidity\n"
+                    "     then:  export SOLCX_BINARY_PATH=$(dirname $(which solc))\n"
+                    "  2. Compile and deploy once in Remix (https://remix.ethereum.org),\n"
+                    "     paste in contracts/FaceVerificationRegistry.sol, deploy to\n"
+                    "     Sepolia via Injected Provider, and put the resulting address in\n"
+                    "     .env as CONTRACT_ADDRESS. The pipeline and verifier then work\n"
+                    "     normally - only this deploy script needs solc."
+                ),
+            ) from exc
 
     compiled = solcx.compile_standard(
         {

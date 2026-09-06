@@ -1,4 +1,20 @@
-# --- Core pipeline (required) ---
+# ---------------------------------------------------------------------------
+# Step 1 of 2.  Install with:
+#     pip install -r requirements.txt
+#
+# Then step 2 (REQUIRED - see note below):
+#     pip install --no-deps face_recognition face_recognition_models
+#
+# Why two steps: the `face_recognition` package declares a hard dependency on
+# `dlib`, which is published only as a source archive and needs CMake plus a
+# C++ toolchain to build. `dlib-bin` below is the same library shipped as a
+# prebuilt wheel, but pip does not treat it as satisfying the `dlib`
+# requirement. Installing face_recognition with --no-deps therefore keeps the
+# prebuilt wheel and avoids a source build. Every dependency it actually needs
+# at runtime is already pinned in this file.
+# ---------------------------------------------------------------------------
+
+# --- Core pipeline ---
 Pillow>=10.0.0            # image decode/validate/perceptual hashing
 numpy>=1.26.0             # encoding + perceptual hash maths
 requests>=2.31.0          # provider APIs, image transport
@@ -6,9 +22,8 @@ python-dotenv>=1.0.0      # .env loading
 web3>=6.11.0              # Ethereum Sepolia client
 eth-account>=0.10.0       # local transaction signing
 
-# --- Face detection and encoding (required) ---
-# dlib-bin ships prebuilt wheels, so no CMake/C++ toolchain is needed.
-# If it is unavailable for your platform, use: pip install dlib
+# --- Face detection and encoding ---
+# Prebuilt dlib wheels: no CMake or C++ toolchain required.
+# If no wheel exists for your platform, install CMake and use: pip install dlib
 dlib-bin>=19.24.6
-face-recognition>=1.3.0
-face-recognition-models>=0.3.0
+click>=8.0.0              # required at import time by face_recognition

@@ -140,7 +140,7 @@ scripts/
     verify_record.py                 independent verification (no keys needed)
     deploy_contract.py               compile + deploy to Sepolia
     tamper_demo.py                   prove tamper-evidence on camera
-tests/                               191 tests, no keys or network required
+tests/                               191 tests (177 offline + 14 needing solc)
 ```
 
 ---
@@ -388,13 +388,30 @@ cd FaceID-Blockchain-Verification
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 
-pip install -r requirements.txt        # runtime
-pip install -r requirements-dev.txt    # + tests and contract deployment
+> **The install is two commands. Both are required.**
+
+```bash
+# 1. Core dependencies (includes prebuilt dlib wheels)
+pip install -r requirements.txt
+
+# 2. face_recognition WITHOUT its dependency resolution  <-- do not skip
+pip install --no-deps face_recognition face_recognition_models
+
+# Optional: tests + contract deployment
+pip install -r requirements-dev.txt
 
 cp .env.example .env                   # then fill it in (see §13)
 ```
 
-`dlib-bin` provides prebuilt dlib wheels, so no CMake or C++ toolchain is required. If your platform has no wheel, fall back to `pip install dlib` (needs CMake).
+**Why `--no-deps` is required.** `face_recognition` declares a hard dependency on `dlib`, which PyPI publishes only as a source archive requiring CMake and a C++ toolchain. `dlib-bin` (installed in step 1) is the identical library as a prebuilt wheel, but pip does not treat it as satisfying the `dlib` requirement — so a plain `pip install face_recognition` triggers a source build that fails on most machines without a full toolchain. `--no-deps` keeps the prebuilt wheel. Every runtime dependency `face_recognition` actually needs is already pinned in `requirements.txt`.
+
+Verify the install before going further:
+
+```bash
+python -c "import face_recognition, dlib, web3; print('OK', dlib.__version__)"
+```
+
+If no `dlib-bin` wheel exists for your platform, install CMake and a C++ compiler, then use `pip install dlib` in place of step 1's `dlib-bin`.
 
 ---
 
@@ -579,10 +596,21 @@ Verify entirely outside this codebase — the contract is public, so a judge can
 
 ```bash
 pip install -r requirements-dev.txt
-pytest                      # 191 tests
+pytest                      # 177 passed, 14 skipped
 pytest -v                   # verbose
 pytest --tb=short -q        # concise
 ```
+
+Expected result offline:
+
+```
+177 passed, 14 skipped
+```
+
+The 14 skips are the Solidity contract integration tests: they compile the real
+contract with `solc` and execute it on an in-process EVM, and skip automatically
+when `solc` cannot be downloaded. With `solc` reachable the suite reports
+**191 passed**.
 
 **No test requires your API keys, your private key, or any network access.** All external APIs are mocked; the contract tests run on an in-process EVM.
 
@@ -681,7 +709,7 @@ These are real and are **not** hidden. Where a limitation cannot be eliminated, 
 - Independent verification requiring no keys
 - Tamper demonstration script
 - Typed errors with remedies for every failure mode
-- 191 automated tests, no keys or network required
+- 191 automated tests (177 run fully offline; 14 contract tests need solc), no keys required
 
 ### 🧪 EXPERIMENTAL — implemented, but with caveats
 
@@ -724,7 +752,7 @@ A clean, unedited run for judging. Total ≈ 4–5 minutes.
 # 1. Show the code is real and nothing is hardcoded  (~30s)
 git log --oneline -5
 grep -ri "instagram.com/p/" src/ --include=*.py     # only regex patterns, no fixed URLs
-pytest -q                                            # 191 passing
+pytest -q                                            # 177 passed, 14 skipped
 
 # 2. Show the input image  (~10s)
 ls -la samples/photo.jpg
