@@ -1,6 +1,6 @@
 # FaceID + Blockchain Verification
 
-**HHgoa Task #3** — a local, end-to-end pipeline that detects and encodes a face from a photograph, finds a real matching social-media post through a **genuine reverse-image search**, and anchors that match on **Ethereum Sepolia** as a tamper-evident, independently verifiable record.
+**HHgoa Task #3**  a local, end-to-end pipeline that detects and encodes a face from a photograph, finds a real matching social-media post through a **genuine reverse-image search**, and anchors that match on **Ethereum Sepolia** as a tamper-evident, independently verifiable record.
 
 No website. No hosting. No hardcoded results. One command in, a blockchain transaction out.
 
@@ -50,7 +50,7 @@ Given a local photograph, this pipeline:
 3. **Selects a real social-media match** from the live provider response using a deterministic, evidence-based ranking, and **independently corroborates** it with perceptual hashing that we compute ourselves.
 4. **Builds a canonical evidence record** and hashes it with SHA-256.
 5. **Anchors the hash on Ethereum Sepolia** through an immutable, append-only smart contract.
-6. **Verifies the record independently** — recomputing the hash locally and cross-checking it against the chain, with no API key and no private key required.
+6. **Verifies the record independently**  recomputing the hash locally and cross-checking it against the chain, with no API key and no private key required.
 
 **Nothing about the social-media result is hardcoded.** There is no fallback URL, no seeded username, no canned response anywhere in the codebase. If the provider returns no social match, the pipeline fails loudly with a genuine negative result rather than inventing one.
 
@@ -65,8 +65,8 @@ This project is deliberately careful about what it claims. A face encoding is no
 | Requirement | Version | Notes |
 |---|---|---|
 | Python | 3.10+ | Tested on 3.12 |
-| pip packages | see `requirements.txt` | `dlib-bin` ships prebuilt wheels — no CMake needed |
-| SerpAPI key | free tier | *or* a TinEye key — at least one reverse-search provider |
+| pip packages | see `requirements.txt` | `dlib-bin` ships prebuilt wheels  no CMake needed |
+| SerpAPI key | free tier | *or* a TinEye key  at least one reverse-search provider |
 | Sepolia RPC URL | any | Public nodes work; no account required |
 | Sepolia test wallet | funded from a faucet | Only for **writing**. Verification needs no key. |
 
@@ -166,7 +166,7 @@ tests/                               204 tests (190 offline + 14 needing solc)
 - **Encoding:** 128-dimensional `face_recognition` encoding.
 - **Validation before detection:** existence, non-empty, decodability, format allow-list (JPEG/PNG/WEBP/BMP/TIFF), minimum 64×64, maximum 50 MP. EXIF orientation is normalized so a rotated-on-disk photo behaves identically to its upright copy.
 - **Multiple faces:** all faces are detected and counted. Detections are sorted by area (ties broken by position), so the "primary" face is deterministic and never depends on detector iteration order. `--require-single-face` turns multi-face images into an explicit error.
-- **Errors:** every failure names the cause and a fix — e.g. *"No face was detected … try `--face-model cnn`, raise `--face-upsample` to 2, or use a clearer front-facing photograph."*
+- **Errors:** every failure names the cause and a fix  e.g. *"No face was detected … try `--face-model cnn`, raise `--face-upsample` to 2, or use a clearer front-facing photograph."*
 
 ### What this step establishes
 
@@ -188,7 +188,7 @@ The raw 128-d encoding **never leaves the machine** and is **never written on-ch
 
 | | **TinEye** (`--provider tineye`) | **Google Lens / SerpAPI** (`--provider serpapi`, default) |
 |---|---|---|
-| Local file accepted directly | ✅ **yes** — multipart search upload | ✅ **yes** — via the SerpAPI Image API |
+| Local file accepted directly | ✅ **yes**  multipart search upload | ✅ **yes**  via the SerpAPI Image API |
 | Index type | exact / derivative copies only | exact + visual similarity |
 | Match strength | every hit is an exact-image match | distinguishes exact vs visual |
 | Social coverage | thinner | broader |
@@ -199,14 +199,14 @@ Google Lens fetches the query image over HTTP and cannot take a local file. Rath
 
 | Mode | Flag | What happens |
 |---|---|---|
-| `direct` (SerpAPI) | *default for* `--provider serpapi` | **SerpAPI Image API direct upload.** The local file is POSTed as `multipart/form-data` to `https://serpapi.com/image`, which returns an `image_id`. Lens is then queried with `engine=google_lens&image_id=...`. The photograph goes only to SerpAPI — the provider already being used — and **never** to a third-party file bin. |
+| `direct` (SerpAPI) | *default for* `--provider serpapi` | **SerpAPI Image API direct upload.** The local file is POSTed as `multipart/form-data` to `https://serpapi.com/image`, which returns an `image_id`. Lens is then queried with `engine=google_lens&image_id=...`. The photograph goes only to SerpAPI  the provider already being used  and **never** to a third-party file bin. |
 | `direct` (TinEye) | `--provider tineye` | Image bytes POSTed straight to the TinEye search endpoint. Nothing is published anywhere. |
 | `provided` | `--image-url <url>` | Fallback. You supply a public URL. The pipeline **downloads it and verifies** it serves the same picture (byte-identical, or perceptually identical if the host re-encoded it) before trusting it. A mismatch is a hard error. |
 | `ephemeral` | `--upload` | Fallback. Opt-in anonymous upload to a short-retention file bin (0x0.st → tmpfiles.org → uguu.se, first success wins) purely so Lens can fetch it. |
 
 **Both providers now accept a local file directly**, so neither route requires publishing your photograph. Passing `--image-url` or `--upload` explicitly forces the URL fallback, which remains fully supported.
 
-**No hosting infrastructure is introduced.** The ephemeral bins are third-party throwaway endpoints we do not operate, nothing persists, and that upload only ever happens behind an explicit `--upload` flag — never silently.
+**No hosting infrastructure is introduced.** The ephemeral bins are third-party throwaway endpoints we do not operate, nothing persists, and that upload only ever happens behind an explicit `--upload` flag  never silently.
 
 #### SerpAPI Image API flow
 
@@ -220,7 +220,7 @@ https://serpapi.com/image  ──►  { "image_id": "..." }
 Google Lens results
 ```
 
-The evidence record stores `serpapi-image-id:<id>` as the query reference — never your local directory path — and records the transport as `serpapi-image-api`.
+The evidence record stores `serpapi-image-id:<id>` as the query reference  never your local directory path  and records the transport as `serpapi-image-api`.
 
 ### Match-type fidelity
 
@@ -230,7 +230,7 @@ SerpAPI response sections are mapped to provider-neutral types and **never upgra
 |---|---|---|
 | `exact_matches` | `EXACT` | provider reports the same image on that page |
 | `image_results`, `image_sources` | `PAGE` | pages containing the image |
-| `visual_matches` | `VISUAL` | visually similar — *not* necessarily the same image |
+| `visual_matches` | `VISUAL` | visually similar  *not* necessarily the same image |
 
 Duplicate URLs across sections keep the **strongest** classification. A `VISUAL` result is never relabelled as `EXACT`.
 
@@ -242,13 +242,13 @@ Duplicate URLs across sections keep the **strongest** classification. A `VISUAL`
 
 ### Three-stage filtering
 
-1. **Platform classification** — 19 platforms (Instagram, Facebook, X, TikTok, LinkedIn, Threads, Reddit, Pinterest, Bluesky, Mastodon, YouTube, …). Subdomains count (`m.facebook.com`, `de.linkedin.com`); lookalike domains do not (`instagram.com.evil.net` is rejected).
-2. **Post-shape detection** — per-platform regexes decide whether the path addresses a *specific post or profile* (`/p/CabcDEF/`, `/user/status/123`, `/@user/video/456`) rather than a login, help, share, explore or hashtag page. Selecting `instagram.com/accounts/login/` and calling it "a matching social media post" would be dishonest, so those are demoted.
-3. **Independent corroboration** — the pipeline downloads the provider's thumbnail for the top candidates and compares it to the input image using **our own** perceptual hashes (dHash + pHash, both must agree within 10 bits). This is evidence we computed, not a provider claim.
+1. **Platform classification**  19 platforms (Instagram, Facebook, X, TikTok, LinkedIn, Threads, Reddit, Pinterest, Bluesky, Mastodon, YouTube, …). Subdomains count (`m.facebook.com`, `de.linkedin.com`); lookalike domains do not (`instagram.com.evil.net` is rejected).
+2. **Post-shape detection**  per-platform regexes decide whether the path addresses a *specific post or profile* (`/p/CabcDEF/`, `/user/status/123`, `/@user/video/456`) rather than a login, help, share, explore or hashtag page. Selecting `instagram.com/accounts/login/` and calling it "a matching social media post" would be dishonest, so those are demoted.
+3. **Independent corroboration**  the pipeline downloads the provider's thumbnail for the top candidates and compares it to the input image using **our own** perceptual hashes (dHash + pHash, both must agree within 10 bits). This is evidence we computed, not a provider claim.
 
 ### Evidence tiers
 
-The strength of the final claim is always explicit — never a fabricated confidence percentage:
+The strength of the final claim is always explicit  never a fabricated confidence percentage:
 
 | Tier | Provider says | We independently confirmed | Meaning |
 |---|---|---|---|
@@ -261,7 +261,7 @@ The strength of the final claim is always explicit — never a fabricated confid
 
 ### Deterministic ranking
 
-Every sort key is real evidence — no invented scores:
+Every sort key is real evidence  no invented scores:
 
 1. evidence tier → 2. provider match type → 3. post-shaped URL → 4. our measured pHash distance → 5. provider's own ordering → 6. URL string (reproducibility tiebreaker).
 
@@ -275,8 +275,8 @@ The same provider response always yields the same selection, regardless of input
 
 The record has two parts:
 
-- **`evidence`** — everything being attested. **This subtree alone is hashed.**
-- **`integrity`** + **`blockchain`** — the resulting hash, algorithm identifiers, and the on-chain anchor (written *after* hashing, which is why it lives outside `evidence`).
+- **`evidence`**  everything being attested. **This subtree alone is hashed.**
+- **`integrity`** + **`blockchain`**  the resulting hash, algorithm identifiers, and the on-chain anchor (written *after* hashing, which is why it lives outside `evidence`).
 
 ```jsonc
 {
@@ -284,7 +284,7 @@ The record has two parts:
     "schema_version": "2.0",
     "created_at_utc": "2026-09-06T09:45:28+00:00",
     "input_image": {
-      "file_name": "photo.jpg",          // file name only — no directory paths
+      "file_name": "photo.jpg",          // file name only  no directory paths
       "sha256": "18e0eaf8…",
       "byte_size": 48213,
       "perceptual": { "ahash": "…", "dhash": "…", "phash": "…", "width": 612, "height": 408 }
@@ -327,7 +327,7 @@ The record has two parts:
 }
 ```
 
-**Privacy by construction:** only the file *name* is stored (never your directory layout), only the OS family (never hostname or username), and only a one-way commitment to the encoding (never the biometric vector). Floats are rejected outright — their textual form is not portable enough for a hash a third party must reproduce exactly.
+**Privacy by construction:** only the file *name* is stored (never your directory layout), only the OS family (never hostname or username), and only a one-way commitment to the encoding (never the biometric vector). Floats are rejected outright  their textual form is not portable enough for a hash a third party must reproduce exactly.
 
 ---
 
@@ -336,7 +336,7 @@ The record has two parts:
 Canonicalization rules (the digest depends on all four):
 
 1. object keys sorted lexicographically
-2. no insignificant whitespace — `separators=(",", ":")`
+2. no insignificant whitespace  `separators=(",", ":")`
 3. UTF-8, non-ASCII preserved as real characters (not `\u` escapes)
 4. NaN/Infinity rejected
 
@@ -353,7 +353,7 @@ python scripts/verify_record.py --record output/verification_record.json --show-
   head -c -1 | sha256sum          # matches integrity.record_sha256
 ```
 
-**Why a forger cannot win:** editing a field breaks the hash (check 2 fails). Editing the field *and* recomputing the stored hash makes the file locally self-consistent, but produces a **different** hash — one that was never anchored on-chain, so the on-chain lookup fails (check 3). The attacker cannot rewrite the original blockchain entry, and cannot back-date a new one.
+**Why a forger cannot win:** editing a field breaks the hash (check 2 fails). Editing the field *and* recomputing the stored hash makes the file locally self-consistent, but produces a **different** hash  one that was never anchored on-chain, so the on-chain lookup fails (check 3). The attacker cannot rewrite the original blockchain entry, and cannot back-date a new one.
 
 ---
 
@@ -361,7 +361,7 @@ python scripts/verify_record.py --record output/verification_record.json --show-
 
 **Blockchain: Ethereum Sepolia testnet (chain ID 11155111).**
 
-Chosen because it is the standard, well-supported Ethereum test network: free faucet ETH, full Etherscan explorer support so judges can independently inspect the transaction in a browser, and identical EVM semantics to mainnet — the same contract would deploy unchanged to a production chain.
+Chosen because it is the standard, well-supported Ethereum test network: free faucet ETH, full Etherscan explorer support so judges can independently inspect the transaction in a browser, and identical EVM semantics to mainnet  the same contract would deploy unchanged to a production chain.
 
 The client **hard-checks the chain ID** and refuses to operate on any other network.
 
@@ -371,26 +371,26 @@ Two values are written per record:
 |---|---|---|
 | `recordHash` | `bytes32` | SHA-256 of the canonical evidence |
 | `urlHash` | `bytes32` | keccak256 of the matched URL |
-| `blockTime` | `uint64` | block timestamp — an immutable *before* proof |
+| `blockTime` | `uint64` | block timestamp  an immutable *before* proof |
 | `submitter` | `address` | who paid for the transaction |
 
 ---
 
 ## 11. Smart contract
 
-`contracts/FaceVerificationRegistry.sol` — Solidity `^0.8.20`, no owner, no upgrade path, no delete, no update. Once written, an entry is permanent. That immutability is precisely what makes the record tamper-evident.
+`contracts/FaceVerificationRegistry.sol`  Solidity `^0.8.20`, no owner, no upgrade path, no delete, no update. Once written, an entry is permanent. That immutability is precisely what makes the record tamper-evident.
 
 ### Improvements over v1
 
 | v1 | v2 | Why |
 |---|---|---|
 | stored the full URL `string` | stores `keccak256(url)` as `bytes32` | Unbounded calldata and storage grew with URL length. A 32-byte commitment is equally tamper-evident, costs a fixed amount of gas, and avoids publishing the URL in plaintext on a permanent public ledger. The full URL stays in the off-chain record, which `recordHash` already commits to. |
-| `uint256 timestamp` | `uint64 blockTime` | Packs with `address submitter` into one storage slot — cheaper, and still valid beyond the year 500,000. |
+| `uint256 timestamp` | `uint64 blockTime` | Packs with `address submitter` into one storage slot  cheaper, and still valid beyond the year 500,000. |
 | `require` strings | custom `error` types | Cheaper, and gives verifiers machine-readable revert reasons. |
 | `getVerification` returned zeros for missing records | **reverts** with `RecordNotFound` | Callers can never mistake "absent" for "zero-valued". |
-| — | added `exists()` | Non-reverting existence check for verifier scripts. |
-| — | added `verify(recordHash, urlHash)` | Confirms anchoring **and** URL binding in a **single** `eth_call`. |
-| — | added `totalRecords` | Cheap enumeration/sanity checking. |
+|  | added `exists()` | Non-reverting existence check for verifier scripts. |
+|  | added `verify(recordHash, urlHash)` | Confirms anchoring **and** URL binding in a **single** `eth_call`. |
+|  | added `totalRecords` | Cheap enumeration/sanity checking. |
 | event indexed only on hash+submitter | indexes `recordHash`, `urlHash`, `submitter` | A verifier can locate the anchoring transaction from the record hash alone, with no log scanning by address. |
 
 **Duplicate `recordHash` values are rejected**, so the first anchoring of any evidence record is authoritative and its timestamp can never be overwritten or back-dated.
@@ -421,7 +421,7 @@ pip install -r requirements-dev.txt
 cp .env.example .env                   # then fill it in (see §13)
 ```
 
-**Why `--no-deps` is required.** `face_recognition` declares a hard dependency on `dlib`, which PyPI publishes only as a source archive requiring CMake and a C++ toolchain. `dlib-bin` (installed in step 1) is the identical library as a prebuilt wheel, but pip does not treat it as satisfying the `dlib` requirement — so a plain `pip install face_recognition` triggers a source build that fails on most machines without a full toolchain. `--no-deps` keeps the prebuilt wheel. Every runtime dependency `face_recognition` actually needs is already pinned in `requirements.txt`.
+**Why `--no-deps` is required.** `face_recognition` declares a hard dependency on `dlib`, which PyPI publishes only as a source archive requiring CMake and a C++ toolchain. `dlib-bin` (installed in step 1) is the identical library as a prebuilt wheel, but pip does not treat it as satisfying the `dlib` requirement  so a plain `pip install face_recognition` triggers a source build that fails on most machines without a full toolchain. `--no-deps` keeps the prebuilt wheel. Every runtime dependency `face_recognition` actually needs is already pinned in `requirements.txt`.
 
 Verify the install before going further:
 
@@ -440,10 +440,10 @@ If no `dlib-bin` wheel exists for your platform, install CMake and a C++ compile
 | `SERPAPI_API_KEY` | Google Lens search | free tier at serpapi.com |
 | `TINEYE_API_KEY` | TinEye search | alternative; accepts local files directly |
 | `SEPOLIA_RPC_URL` | writing **and** verifying | e.g. `https://ethereum-sepolia-rpc.publicnode.com` |
-| `PRIVATE_KEY` | **writing only** | throwaway faucet wallet — never a mainnet key |
+| `PRIVATE_KEY` | **writing only** | throwaway faucet wallet  never a mainnet key |
 | `CONTRACT_ADDRESS` | writing **and** verifying | printed by the deploy script |
 
-You need **at least one** search provider key. `.env` is git-ignored. **Independent verification requires no private key and no API key** — only `SEPOLIA_RPC_URL` and `CONTRACT_ADDRESS`.
+You need **at least one** search provider key. `.env` is git-ignored. **Independent verification requires no private key and no API key**  only `SEPOLIA_RPC_URL` and `CONTRACT_ADDRESS`.
 
 ---
 
@@ -506,10 +506,10 @@ python scripts/verify_record.py --record output/verification_record.json
 No private key. No API key. Anyone holding the record file, an RPC URL and the contract address reaches the same verdict:
 
 1. record file is structurally valid
-2. the evidence subtree still hashes to `integrity.record_sha256` — **local tamper check**
-3. that hash is anchored on-chain — **existence**
-4. the on-chain hash equals the local hash — **integrity**
-5. `keccak256(local matched URL)` equals the on-chain commitment — **URL binding**
+2. the evidence subtree still hashes to `integrity.record_sha256`  **local tamper check**
+3. that hash is anchored on-chain  **existence**
+4. the on-chain hash equals the local hash  **integrity**
+5. `keccak256(local matched URL)` equals the on-chain commitment  **URL binding**
 
 Exit code `0` = VERIFIED / UNMODIFIED, non-zero = failed.
 
@@ -522,7 +522,7 @@ python scripts/tamper_demo.py --record output/verification_record.json
 python scripts/verify_record.py --record output/verification_record.TAMPERED.json   # exits 2
 ```
 
-Verify entirely outside this codebase — the contract is public, so a judge can call `verify(recordHash, urlHash)` directly on Sepolia Etherscan's *Read Contract* tab.
+Verify entirely outside this codebase  the contract is public, so a judge can call `verify(recordHash, urlHash)` directly on Sepolia Etherscan's *Read Contract* tab.
 
 ---
 
@@ -669,7 +669,7 @@ The registration transaction is publicly inspectable on Sepolia Etherscan. The r
 
 ## 20. Security considerations
 
-- **Private keys** are read from the environment only. Never logged, never written to the record, never included in an error message — there is an explicit test asserting a bad key is not echoed back.
+- **Private keys** are read from the environment only. Never logged, never written to the record, never included in an error message  there is an explicit test asserting a bad key is not echoed back.
 - **Use a throwaway wallet** holding only faucet ETH. Never a key controlling mainnet funds.
 - **`.env` is git-ignored.** Verify with `git check-ignore .env` before recording.
 - **Reading requires no key**, so verification can be delegated to anyone safely.
@@ -690,11 +690,11 @@ These are real and are **not** hidden. Where a limitation cannot be eliminated, 
 2. **A visual match is not proof the identical image is on the page.** *Mitigated:* exact and visual are never conflated; we independently perceptually-hash the provider thumbnail; the resulting **evidence tier** states the strength precisely.
 3. **Corroboration uses the provider's thumbnail, not the post's original file.** Thumbnails are downscaled, re-encoded derivatives. A low Hamming distance corroborates "the same picture", not byte equality. Stated in the record.
 4. **Social platforms block automated fetches**, and posts may be private, deleted or region-locked. *Mitigated:* fetch failures are recorded as "not corroborated" and are never fatal; the pipeline degrades to a weaker, honestly-labelled tier. The pipeline deliberately does **not** scrape platforms in violation of their terms.
-5. **Provider coverage varies.** Neither Lens nor TinEye indexes all social content, especially login-walled posts. A negative result is a genuine negative, not a bug — and the pipeline says so rather than inventing a match.
+5. **Provider coverage varies.** Neither Lens nor TinEye indexes all social content, especially login-walled posts. A negative result is a genuine negative, not a bug  and the pipeline says so rather than inventing a match.
 6. **Sepolia is a testnet.** Its data is not economically secured like mainnet and testnets can be deprecated. The same contract deploys unchanged to any EVM chain; the integrity model is identical.
 7. **The blockchain proves record integrity, not real-world truth.** It is a notary, not an oracle: it proves *what* was recorded and *when*, not that the recorded claim is true.
 8. **A face encoding is not an identity.** No identity claim is made anywhere.
-9. **The URL is committed as a hash**, so an observer cannot enumerate URLs from the chain alone — by design. Verification requires the off-chain record too.
+9. **The URL is committed as a hash**, so an observer cannot enumerate URLs from the chain alone  by design. Verification requires the off-chain record too.
 10. **Perceptual hash thresholds (10 bits) are a judgement call.** They are recorded in every record so any reviewer can recompute the verdict under their own threshold.
 11. **`created_at_utc` is the local machine's clock** and is self-asserted. The trustworthy timestamp is `blockTime`, set by the network.
 12. **Third-party API dependency.** SerpAPI and TinEye are paid services with quotas; the pipeline cannot run without one.
@@ -707,7 +707,7 @@ These are real and are **not** hidden. Where a limitation cannot be eliminated, 
 ✅ The evidence file has **not been altered by a single byte** since anchoring.
 ✅ The matched URL is **exactly** the one committed at anchoring time (keccak256 binding).
 ✅ The address in `submitter` **paid for and authorised** that anchoring.
-✅ The commitment is **immutable** — no owner, no update, no delete, no upgrade path.
+✅ The commitment is **immutable**  no owner, no update, no delete, no upgrade path.
 ✅ **Ordering:** the evidence provably predates the block, so it cannot be back-dated.
 
 ---
@@ -716,19 +716,19 @@ These are real and are **not** hidden. Where a limitation cannot be eliminated, 
 
 ❌ **The identity of any person in the photograph.** Face detection finds *a* face; it does not name anyone.
 ❌ **That anyone owns or controls the matched social-media account.** A photo appearing somewhere says nothing about account ownership.
-❌ **That the matched page contains the identical image**, unless the tier is `VERIFIED_EXACT` or `PROVIDER_EXACT` — and even then it reflects the provider's index at search time.
+❌ **That the matched page contains the identical image**, unless the tier is `VERIFIED_EXACT` or `PROVIDER_EXACT`  and even then it reflects the provider's index at search time.
 ❌ **That the reverse-image-search provider is correct.** We record what the provider returned; we do not vouch for it.
 ❌ **That the page still exists**, is public, or is unchanged since the search.
 ❌ **That the input photograph is authentic** or unedited. We hash what we were given.
 ❌ **That the submitter is honest.** Anyone can anchor any hash; the chain records *who* and *when*, not *whether it is true*.
 
-> **In one sentence:** this system provides a cryptographically verifiable, timestamped, tamper-evident record of *what a reverse-image search returned for a specific image at a specific moment* — and nothing more.
+> **In one sentence:** this system provides a cryptographically verifiable, timestamped, tamper-evident record of *what a reverse-image search returned for a specific image at a specific moment*  and nothing more.
 
 ---
 
 ## 24. Implementation status
 
-### ✅ IMPLEMENTED — working, tested, demonstrable
+### ✅ IMPLEMENTED  working, tested, demonstrable
 
 - Face detection + 128-d encoding with full input validation and multi-face handling
 - Live Google Lens (SerpAPI) and TinEye reverse-image search adapters
@@ -746,7 +746,7 @@ These are real and are **not** hidden. Where a limitation cannot be eliminated, 
 - Typed errors with remedies for every failure mode
 - 204 automated tests (190 run fully offline; 14 contract tests need solc), no keys required
 
-### 🧪 EXPERIMENTAL — implemented, but with caveats
+### 🧪 EXPERIMENTAL  implemented, but with caveats
 
 - **Perceptual corroboration of provider thumbnails.** Works well, but operates on downscaled derivatives, and platforms frequently block thumbnail fetches. Never fatal; degrades to a lower tier.
 - **Ephemeral upload transport.** Depends on third-party bins that may rate-limit or disappear; three are tried in order.
@@ -754,15 +754,15 @@ These are real and are **not** hidden. Where a limitation cannot be eliminated, 
 
 ### ⚙️ OPTIONAL
 
-- TinEye provider (needs a separate paid key) — enables the strongest, upload-free transport
+- TinEye provider (needs a separate paid key)  enables the strongest, upload-free transport
 - `--require-tier`, `--require-post-url` strictness gates
 - `--face-model cnn` for higher detection sensitivity
 - `--skip-chain` dry runs
 
-### 🔭 FUTURE WORK — deliberately NOT claimed as working
+### 🔭 FUTURE WORK  deliberately NOT claimed as working
 
 - Fetching the social post's **own** image for byte-level comparison (blocked by platform ToS and login walls)
-- Cryptographic proof of social-account **ownership** (would require a challenge–response signature from the account holder — the only sound way to prove control)
+- Cryptographic proof of social-account **ownership** (would require a challenge–response signature from the account holder  the only sound way to prove control)
 - Mainnet or L2 (Base/Arbitrum) deployment for economic security
 - Merkle-batching many records into one transaction to cut gas
 - C2PA / content-credential provenance checks on the input image
@@ -813,16 +813,16 @@ python scripts/verify_record.py --record output/verification_record.TAMPERED.jso
 python scripts/verify_record.py --record output/verification_record.json
 ```
 
-**8. Show it on the public blockchain (~30s)** — open `https://sepolia.etherscan.io/tx/<TX_HASH>` in a browser, show the transaction, then the contract's *Read Contract* → `verify(recordHash, urlHash)` returning `true, true`.
+**8. Show it on the public blockchain (~30s)**  open `https://sepolia.etherscan.io/tx/<TX_HASH>` in a browser, show the transaction, then the contract's *Read Contract* → `verify(recordHash, urlHash)` returning `true, true`.
 
 **Narration points to hit**
-- [ ] "The reverse-image search is live — these candidates come from the provider's response, nothing is hardcoded."
+- [ ] "The reverse-image search is live  these candidates come from the provider's response, nothing is hardcoded."
 - [ ] "The evidence tier tells you exactly how strong this match is."
 - [ ] "The face encoding never leaves this machine and is never written on-chain."
-- [ ] "This proves the record is unaltered and predates the block — it does **not** prove anyone's identity or that they own that account."
+- [ ] "This proves the record is unaltered and predates the block  it does **not** prove anyone's identity or that they own that account."
 
 ---
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT  see [LICENSE](LICENSE).
