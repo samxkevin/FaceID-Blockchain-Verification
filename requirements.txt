@@ -19,6 +19,7 @@ Pillow>=10.0.0            # image decode/validate/perceptual hashing
 numpy>=1.26.0             # encoding + perceptual hash maths
 requests>=2.31.0          # provider APIs, image transport
 python-dotenv>=1.0.0      # .env loading
+setuptools<81            # face_recognition_models still imports pkg_resources
 web3>=6.11.0              # Ethereum Sepolia client
 eth-account>=0.10.0       # local transaction signing
 
